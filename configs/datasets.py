@@ -26,3 +26,11 @@ class alpaca_dataset:
     train_split: str = "train"
     test_split: str = "val"
     data_path: str = "ft_datasets/alpaca_data.json"
+
+
+@dataclass
+class text_vc_dataset:
+    dataset: str = "text_vc_dataset"
+    train_split: str = "train"
+    test_split: str = "test"
+    hf_name: str = "lca0503/soxdata_small_encodec"
