@@ -16,6 +16,8 @@ def preprocess_dataset(batch, tokenizer, max_length):
     
     eos_token_id = tokenizer.eos_token_id
     sep_token_id = tokenizer.sep_token_id
+    pad_token_id = tokenizer.pad_token_id
+    ignore_index = -100
 
     for i in range(len(batch["instruction"])):
         instruction_ids = tokenizer(batch["instruction"][i])["input_ids"][1:] # [1:] is for Llama2
@@ -24,7 +26,7 @@ def preprocess_dataset(batch, tokenizer, max_length):
         
         context_ids    = instruction_ids + [sep_token_id] + source_unit_ids
         curr_input_ids = context_ids + [sep_token_id] + target_unit_ids
-        curr_label_ids = [-100] * len(context_ids) + target_unit_ids + [eos_token_id]
+        curr_label_ids = [ignore_index] * len(context_ids) + target_unit_ids + [eos_token_id]
 
         if len(curr_input_ids) > max_length:
             continue
@@ -32,13 +34,13 @@ def preprocess_dataset(batch, tokenizer, max_length):
         input_ids.append(curr_input_ids)
         label_ids.append(curr_label_ids)
     
-    input_ids, attention_masks = pad_sequences_and_create_masks(input_ids, max_length, -100)
-    label_ids, _ = pad_sequences_and_create_masks(label_ids, max_length, -100)
+    input_ids, attention_masks = pad_sequences_and_create_masks(input_ids, max_length, pad_token_id)
+    label_ids, _ = pad_sequences_and_create_masks(label_ids, max_length, ignore_index)
     
     return {
         "input_ids": torch.tensor(input_ids),
         "labels": torch.tensor(label_ids),
-        "attention_mask": attention_masks
+        "attention_mask": torch.tensor(attention_masks)
     }
 
 
@@ -50,7 +52,8 @@ def get_preprocessed_text_vc(dataset_config, tokenizer, split, max_length=2000):
 
     dataset = dataset.map(
         partial(preprocess_dataset, tokenizer=tokenizer, max_length=max_length),
-        batched=True
+        batched=True,
+        load_from_cache_file=False
     )
     columns = ["input_ids", "labels", "attention_mask"]
     dataset.set_format(type="torch", columns=columns)
